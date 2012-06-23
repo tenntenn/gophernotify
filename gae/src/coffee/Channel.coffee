@@ -8,7 +8,7 @@ define('Channel',
                 @callBacks = {}
                 @callBacks['onpost'] = (data) =>
                     @model.message(data.Body)
-                    $.post('/channel/response',{"clientID" : @clientId});
+                    $.post("/#{@clientId}/response",{"clientID" : @clientId});
                 socket = channel.open()
                 socket.onmessage = (msg) =>
                     data = $.evalJSON(msg.data)

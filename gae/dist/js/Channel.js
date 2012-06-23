@@ -13,7 +13,7 @@ define('Channel', [], function() {
       this.callBacks = {};
       this.callBacks['onpost'] = function(data) {
         _this.model.message(data.Body);
-        return $.post('/channel/response', {
+        return $.post("/" + _this.clientId + "/response", {
           "clientID": _this.clientId
         });
       };
