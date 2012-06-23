@@ -1,0 +1,12 @@
+{{define "scripts"}}
+<script>
+  var gophernotify = {};
+  gophernotify.clientID = '{{js .ClientID}}';
+  gophernotify.token = '{{js .Token}}';  
+</script>
+<script src="/_ah/channel/jsapi"></script>
+<script src="js/knockout-2.0.0.js"></script>
+<script src="js/jquery-1.7.1.min.js"></script>
+<script src="js/jquery.json-2.3.min.js"></script>
+<script data-main="js/main" src="js/require.js"></script>
+{{end}}

@@ -1,0 +1,16 @@
+{{define "index"}}
+<!DOCTYPE html>
+<html>
+  <head>
+	<meta charset="UTF-8"/>
+  </head>
+  <body>
+	{{template "gopher" .}}
+	{{template "scripts" .}}
+	<div id="header">
+	  <a href="http://golang.org">Golang</a> is developed by Google.
+	  Gopher's svg image is created from <a href="http://golang.org">golang.org</a>'s png image.
+	</div>
+  </body>
+</html>
+{{end}}

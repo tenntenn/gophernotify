@@ -1,0 +1,15 @@
+# -*- coding: utf-8 -*-
+# Coffeescriptの監視
+guard 'coffeescript', :input => 'coffee', :output => '../dist/js', :bare => true
+
+# その他のファイルの監視
+guard :shell do
+  watch(/^(.+\/)*.+(\.go|\.html|\.yaml)$/) {
+    |m|
+    dist = "../dist/" + m[0]
+	dir = `dirname #{dist}`
+	`mkdir -p #{dir}`
+    `cp #{m[0]} #{dist}`
+    `growlnotify -m "copy #{m[0]} to #{dist}"`
+  }
+end

@@ -1,0 +1,18 @@
+application: gophernotify
+version: 0-0-1
+runtime: go
+api_version: go1
+
+handlers:
+- url: /js
+  static_dir: js
+
+- url: /template/.+
+  script: _go_app
+- url: /[0-9]+(/.+)?
+  script: _go_app
+- url: /
+  script: _go_app
+
+inbound_services:
+- channel_presence
