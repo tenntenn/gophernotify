@@ -5,8 +5,8 @@ import (
 	"appengine/channel"
 	"appengine/datastore"
 	"fmt"
-	"strconv"
 	"net/http"
+	"strconv"
 )
 
 func Init(clientID string) {
@@ -148,7 +148,7 @@ func response(w http.ResponseWriter, r *http.Request) {
 	clientId := r.FormValue("clientID")
 	c := appengine.NewContext(r)
 	c.Infof("Response from %s", clientId)
-	info := CallBackInfo{"post", clientId}	
+	info := CallBackInfo{"post", clientId}
 	putCallBack(c, info)
 }
 
@@ -156,7 +156,7 @@ func response(w http.ResponseWriter, r *http.Request) {
 func post(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	c := appengine.NewContext(r)
-	msg := struct{
+	msg := struct {
 		Body string
 	}{
 		r.FormValue("message"),

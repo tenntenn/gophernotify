@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"net/url"
-	"fmt"
 )
 
 var msg string
