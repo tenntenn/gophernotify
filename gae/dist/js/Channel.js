@@ -14,7 +14,7 @@ define('Channel', [], function() {
       this.callBacks['onpost'] = function(data) {
         _this.model.message(data.Body);
         return $.post("/" + _this.clientId + "/response", {
-          "clientID": _this.clientId
+          clientID: _this.clientId
         });
       };
       socket = channel.open();

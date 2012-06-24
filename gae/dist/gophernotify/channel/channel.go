@@ -106,7 +106,7 @@ func SendCallBack(c appengine.Context, clientID int64, request string, args inte
 	// sent data
 	handler := fmt.Sprintf("on%s", request)
 	data := struct {
-		Call string `json:"call"`
+		Call string      `json:"call"`
 		Args interface{} `json:"args"`
 	}{
 		handler,
@@ -149,4 +149,3 @@ func response(w http.ResponseWriter, r *http.Request) {
 	info := CallBackInfo{"post", clientId}
 	putCallBack(c, info)
 }
-

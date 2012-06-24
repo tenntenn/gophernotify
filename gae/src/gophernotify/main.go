@@ -14,6 +14,7 @@ import (
 // initialize this program
 func init() {
 	http.HandleFunc("/", root)
+	http.HandleFunc("/client", client)
 }
 
 // html templates
@@ -91,6 +92,14 @@ func index(w http.ResponseWriter, r *http.Request) {
 		msg,
 	}
 	if err = templates.ExecuteTemplate(w, "index", templateData); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Fatal(err.Error())
+	}
+}
+
+// client handler
+func client(w http.ResponseWriter, r *http.Request) {
+	if err := templates.ExecuteTemplate(w, "client", nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Fatal(err.Error())
 	}
