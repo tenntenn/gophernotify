@@ -6,14 +6,12 @@ import (
 	"appengine/datastore"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strconv"
 )
 
 // initialize this package
 func Init(clientID string) {
 	http.HandleFunc(fmt.Sprintf("/%s/response", clientID), response)
-	http.HandleFunc(fmt.Sprintf("/%s/post", clientID), post)
 }
 
 // client information
@@ -100,7 +98,7 @@ func putCallBack(c appengine.Context, info CallBackInfo) error {
 }
 
 // send data client callbacks.
-func sendCallBack(c appengine.Context, clientID int64, request string, args interface{}) error {
+func SendCallBack(c appengine.Context, clientID int64, request string, args interface{}) error {
 
 	// clientKey
 	clientKey := datastore.NewKey(c, "ClientInfo", "", clientID, nil)
@@ -108,7 +106,7 @@ func sendCallBack(c appengine.Context, clientID int64, request string, args inte
 	// sent data
 	handler := fmt.Sprintf("on%s", request)
 	data := struct {
-		Call string      `json:"call"`
+		Call string `json:"call"`
 		Args interface{} `json:"args"`
 	}{
 		handler,
@@ -152,37 +150,3 @@ func response(w http.ResponseWriter, r *http.Request) {
 	putCallBack(c, info)
 }
 
-// post 
-func post(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	c := appengine.NewContext(r)
-
-	// get clientID from form values or URL
-	clientIdStr := r.FormValue("clientID")
-	clientId, err := strconv.ParseInt(clientIdStr, 10, 64)
-	if err != nil {
-		c.Errorf("Cannot get clientID from form values caused by (%s).", err.Error())
-		reg, _ := regexp.Compile("^/([0-9]+)/post/?$")
-		founds := reg.FindStringSubmatch(r.URL.RequestURI())
-		if founds == nil || len(founds) < 2 {
-			err := fmt.Errorf("Can not get clientID")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			c.Errorf(err.Error())
-			return
-		}
-		clientId, err = strconv.ParseInt(founds[1], 10, 64)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			c.Errorf("Cannot get clientID from URL caused by (%s).", err.Error())
-			return
-		}
-	}
-
-	msg := struct {
-		Body string
-	}{
-		r.FormValue("message"),
-	}
-	c.Infof("%s", msg)
-	sendCallBack(c, clientId, "post", msg)
-}

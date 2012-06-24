@@ -3,6 +3,8 @@ define('MessageViewModel',
     ],
     ()->
         class MessageViewModel
-            constructor:()->
+            constructor:(msg)->
                 @message = ko.observable('')
+                if msg?
+                    @message(msg)
 )

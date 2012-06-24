@@ -6,8 +6,8 @@ import (
 	"gophernotify/channel"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
+	"regexp"
 	"text/template"
 )
 
@@ -31,10 +31,12 @@ func root(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err.Error())
 		return
 	}
-	client.Listen(c, "post")
 
 	// initialize channel package
 	channel.Init(client.ClientID)
+
+	// create post handler by a client
+	http.HandleFunc(fmt.Sprintf("/%s/post", client.ClientID), post)
 
 	// create index handler by a client
 	urlStr := fmt.Sprintf("/%s", client.ClientID)
@@ -54,10 +56,10 @@ func index(w http.ResponseWriter, r *http.Request) {
 	founds := reg.FindStringSubmatch(r.URL.RequestURI())
 	if founds == nil || len(founds) < 2 {
 		err := fmt.Errorf("Can not get clientID")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		c.Errorf(err.Error())
-		return
-	}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.Errorf(err.Error())
+			return
+		}
 	clientId, err := strconv.ParseInt(founds[1], 10, 64)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -73,13 +75,20 @@ func index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	client.Listen(c, "post")
+
+	msg, _ := GetMessage(c, clientId)
+	c.Infof("Got message (%#v) from datastore.", msg)
+
 	// index.html
 	templateData := struct {
 		Token    string
 		ClientID string
+		Message *Message
 	}{
 		client.Token,
 		client.ClientID,
+		msg,
 	}
 	if err = templates.ExecuteTemplate(w, "index", templateData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

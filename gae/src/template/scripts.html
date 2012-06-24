@@ -3,6 +3,9 @@
   var gophernotify = {};
   gophernotify.clientID = '{{js .ClientID}}';
   gophernotify.token = '{{js .Token}}';  
+  {{with .Message}}
+  gophernotify.msg = '{{js .Body}}';
+  {{end}}
 </script>
 <script src="/_ah/channel/jsapi"></script>
 <script src="js/knockout-2.0.0.js"></script>
