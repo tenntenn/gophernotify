@@ -6,29 +6,31 @@ import (
 	"appengine/datastore"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 )
 
+// initialize this package
 func Init(clientID string) {
 	http.HandleFunc(fmt.Sprintf("/%s/response", clientID), response)
 	http.HandleFunc(fmt.Sprintf("/%s/post", clientID), post)
 }
 
-// 接続しているクライアントの情報です。
+// client information
 type ClientInfo struct {
-	// クライアントID
+	// clientID
 	ClientID string
-	// トークンです。
+	// token
 	Token string
 }
 
-// 新しいクライアントを作成します。
+// create new client and put on datastore
 func NewClient(c appengine.Context) (*ClientInfo, error) {
 
-	// データストアのキー
+	// key
 	key, err := datastore.Put(c, datastore.NewIncompleteKey(c, "ClientInfo", nil), &ClientInfo{"", ""})
 
-	// トークンの作成
+	// create token and clientID
 	clientID := fmt.Sprintf("%d", key.IntID())
 	tok, err := channel.Create(c, clientID)
 	if err != nil {
@@ -45,7 +47,7 @@ func NewClient(c appengine.Context) (*ClientInfo, error) {
 	return client, nil
 }
 
-// 指定したIDのクライアントを取得します。
+// get client info by client id from datastore
 func GetClient(c appengine.Context, clientID int64) (*ClientInfo, error) {
 
 	c.Infof("Get Client of %d", clientID)
@@ -61,23 +63,24 @@ func GetClient(c appengine.Context, clientID int64) (*ClientInfo, error) {
 	return &client, nil
 }
 
+// start listen a post
 func (client *ClientInfo) Listen(c appengine.Context, request string) {
 	info := CallBackInfo{request, client.ClientID}
 	putCallBack(c, info)
 }
 
-// クライアントからのコールバックのリクエスト情報です。
+// callback information
 type CallBackInfo struct {
-	// コールバックのリクエストを表す文字列
+	// callback request
 	Request string
-	// クライアントのID
+	// clientID
 	ClientID string
 }
 
-// コールバック情報を追加します。
+// put callback info on datastore.
 func putCallBack(c appengine.Context, info CallBackInfo) error {
 
-	// クライアント情報があるか？
+	// client info is stored?
 	intID, _ := strconv.ParseInt(info.ClientID, 10, 64)
 	key := datastore.NewKey(c, "ClientInfo", "", intID, nil)
 	var client ClientInfo
@@ -87,8 +90,8 @@ func putCallBack(c appengine.Context, info CallBackInfo) error {
 		return err
 	}
 
-	// データストアに登録する
-	_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "CallBackInfo", nil), &info)
+	// put on datastore
+	_, err = datastore.Put(c, datastore.NewIncompleteKey(c, "CallBackInfo", key), &info)
 	if err != nil {
 		return err
 	}
@@ -96,53 +99,50 @@ func putCallBack(c appengine.Context, info CallBackInfo) error {
 	return nil
 }
 
-// コールバックにデータを送ります。
-func sendCallBack(c appengine.Context, request string, args interface{}) error {
+// send data client callbacks.
+func sendCallBack(c appengine.Context, clientID int64, request string, args interface{}) error {
 
-	// 送るデータ
+	// clientKey
+	clientKey := datastore.NewKey(c, "ClientInfo", "", clientID, nil)
+
+	// sent data
 	handler := fmt.Sprintf("on%s", request)
-	data := map[string]interface{}{"call": handler, "args": args}
-	q := datastore.NewQuery("CallBackInfo").Filter("Request=", request)
+	data := struct {
+		Call string      `json:"call"`
+		Args interface{} `json:"args"`
+	}{
+		handler,
+		args,
+	}
+	q := datastore.NewQuery("CallBackInfo").Ancestor(clientKey).Filter("Request=", request)
 
-	// 送る先
+	// callbacks
 	var callbacks []CallBackInfo
 	keys, err := q.GetAll(c, &callbacks)
 	if err != nil {
+		c.Errorf(err.Error())
 		return err
 	}
 
-	// 送信
+	// send
 	for i, callback := range callbacks {
 		k := keys[i]
 		client := callback.ClientID
 		c.Infof("Send to %s", client)
 		channel.SendJSON(c, client, data)
 
-		// リクエストを削除
+		// remove request
 		err = datastore.Delete(c, k)
 		if err != nil {
 			return err
 		}
-
-		// 最後のリクエストならクライアント情報も削除
-		// count, err := datastore.NewQuery("CallBackInfo").Filter("ClientID=", callback.ClientID).Count(c)
-		// if err != nil {
-		// 	return err
-		// }
-		// if count <= 0 {
-		// 	intID, _ := strconv.ParseInt(callback.ClientID, 10, 64)
-		// 	clientKey := datastore.NewKey(c, "ClientInfo", "", intID, nil)
-		// 	err = datastore.Delete(c, clientKey)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
 	}
 
 	return nil
 }
 
-// Channel APIのプッシュに対するレスポンス
+// response of push by channel api from clients.
+// client must do response after receiving data.
 func response(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	clientId := r.FormValue("clientID")
@@ -152,15 +152,37 @@ func response(w http.ResponseWriter, r *http.Request) {
 	putCallBack(c, info)
 }
 
-// メッセージの投稿
+// post 
 func post(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	c := appengine.NewContext(r)
+
+	// get clientID from form values or URL
+	clientIdStr := r.FormValue("clientID")
+	clientId, err := strconv.ParseInt(clientIdStr, 10, 64)
+	if err != nil {
+		c.Errorf("Cannot get clientID from form values caused by (%s).", err.Error())
+		reg, _ := regexp.Compile("^/([0-9]+)/post/?$")
+		founds := reg.FindStringSubmatch(r.URL.RequestURI())
+		if founds == nil || len(founds) < 2 {
+			err := fmt.Errorf("Can not get clientID")
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.Errorf(err.Error())
+			return
+		}
+		clientId, err = strconv.ParseInt(founds[1], 10, 64)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.Errorf("Cannot get clientID from URL caused by (%s).", err.Error())
+			return
+		}
+	}
+
 	msg := struct {
 		Body string
 	}{
 		r.FormValue("message"),
 	}
 	c.Infof("%s", msg)
-	sendCallBack(c, "post", msg)
+	sendCallBack(c, clientId, "post", msg)
 }

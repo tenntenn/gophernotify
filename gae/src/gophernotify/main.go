@@ -6,25 +6,25 @@ import (
 	"gophernotify/channel"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
-	"strings"
 	"text/template"
 )
 
+// initialize this program
 func init() {
 	http.HandleFunc("/", root)
 }
 
-// テンプレート
+// html templates
 var templates = template.Must(template.ParseGlob("template/*.html"))
 
-// ルートハンドラ
+// root handler
 func root(w http.ResponseWriter, r *http.Request) {
 
-	// 新しいコンテキストを作成
 	c := appengine.NewContext(r)
 
-	// リクエスト毎にキーを作成する
+	// create token and clientID by a request
 	client, err := channel.NewClient(c)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -33,35 +33,40 @@ func root(w http.ResponseWriter, r *http.Request) {
 	}
 	client.Listen(c, "post")
 
-	// チャネル関係の初期化
+	// initialize channel package
 	channel.Init(client.ClientID)
 
-	// クライアント毎にindexを作る
+	// create index handler by a client
 	urlStr := fmt.Sprintf("/%s", client.ClientID)
 	http.HandleFunc(urlStr, index)
 
-	// リダイレクトする
+	// redirect to specific index by clientID
 	http.Redirect(w, r, urlStr, http.StatusFound)
 }
 
-// インデックス
+// index handler
 func index(w http.ResponseWriter, r *http.Request) {
 
 	c := appengine.NewContext(r)
 
-	// クライアントIDを取得する
-	uriArray := strings.Split(r.URL.RequestURI(), "/")
-	if uriArray == nil || len(uriArray) <= 0 {
+	// get clientID from URL
+	reg, _ := regexp.Compile("^/([0-9]+)/?$")
+	founds := reg.FindStringSubmatch(r.URL.RequestURI())
+	if founds == nil || len(founds) < 2 {
 		err := fmt.Errorf("Can not get clientID")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		c.Errorf(err.Error())
 		return
 	}
-	clientId, _ := strconv.ParseInt(uriArray[len(uriArray)-1], 10, 64)
+	clientId, err := strconv.ParseInt(founds[1], 10, 64)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.Errorf("Cannot get clientID from URL caused by (%s).", err.Error())
+		return
+	}
 
-	// クライアント情報
+	// get client info from datastore
 	client, err := channel.GetClient(c, clientId)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		c.Errorf(err.Error())
